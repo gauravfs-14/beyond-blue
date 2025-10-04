@@ -2,6 +2,8 @@ import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { Planet } from './models/planet';
+import { isSafeUrl, fetchHtml, extractMainText, extractHrefFromPlRefname } from './utils/summarize';
+import { summarizePlanetFromPaper } from './services/gemini';
 
 // ---- App setup ----
 const app = express();
@@ -14,6 +16,33 @@ if (!MONGO_URI) {
   console.error('Error: MONGO_URI environment variable is not set.');
   process.exit(1);
 }
+
+
+
+
+
+const summaryCache = new Map<string, { at: number; data: any }>();
+const CACHE_TTL_MS = 1000 * 60 * 60; // 1 hour
+
+function getCached(id: string) {
+  const hit = summaryCache.get(id);
+  if (!hit) return null;
+  if (Date.now() - hit.at > CACHE_TTL_MS) {
+    summaryCache.delete(id);
+    return null;
+  }
+  return hit.data;
+}
+function setCached(id: string, data: any) {
+  summaryCache.set(id, { at: Date.now(), data });
+}
+
+
+
+
+
+
+
 
 // ---- Mongo (Mongoose v8+) ----
 mongoose.set('sanitizeFilter', true);
@@ -153,6 +182,64 @@ app.get('/false_positive', async (req, res, next) => {
         next(err);
     }
 });
+
+app.get('/summarize/:id', async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid ID' });
+    }
+
+    // cache
+    const cached = getCached(id);
+    if (cached) return res.json(cached);
+
+    // find planet
+    const planet = await Planet.findById(id).lean().exec();
+
+    if (!planet) return res.status(404).json({ error: 'Planet not found' });
+    console.log('Planet:', planet.pl_name, planet.hostname);
+
+    // extract URL from pl_refname
+    const href = extractHrefFromPlRefname((planet as any).pl_refname);
+    if (!href) return res.status(400).json({ error: 'No link found in pl_refname' });
+    if (!isSafeUrl(href)) return res.status(400).json({ error: 'Unsafe or unsupported URL' });
+
+    // fetch + extract readable text
+    const html = await fetchHtml(href, 15000);
+    const { title, text } = extractMainText(html, href);
+    if (!text || text.length < 200) {
+      return res.status(422).json({ error: 'Could not extract enough text to summarize', sourceUrl: href });
+    }
+
+  // call Gemini to produce a summary about this specific planet using only the paper
+  const summary = await summarizePlanetFromPaper(String(planet.pl_name), text);
+
+    const payload = {
+      id,
+      sourceUrl: href,
+      title: title ?? null,
+      summaryModel: 'gemini-2.5-flash',
+      summary
+    };
+
+    setCached(id, payload);
+    return res.json(payload);
+  } catch (err: any) {
+    // Friendly errors for common cases
+    if (err?.code === 'NO_LLM') {
+      return res.status(501).json({ error: 'LLM not configured. Set GOOGLE_API_KEY.' });
+    }
+    if (err?.name === 'AbortError') {
+      return res.status(504).json({ error: 'Upstream fetch timed out' });
+    }
+    next(err);
+  }
+});
+
+
+
 
 // Root
 app.get('/', (_req: Request, res: Response) => {
