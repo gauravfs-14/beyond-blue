@@ -4,4 +4,16 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi>=0.118.0",
+    "lightgbm>=4.6.0",
+    "matplotlib>=3.10.6",
+    "mlxtend>=0.23.4",
+    "numpy>=2.3.3",
+    "pandas>=2.3.3",
+    "plotly>=6.3.1",
+    "scikit-learn>=1.7.2",
+    "seaborn>=0.13.2",
+    "shap>=0.48.0",
+    "xgboost>=3.0.5",
+]
