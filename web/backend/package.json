@@ -1,0 +1,18 @@
+{
+  "name": "backend",
+  "packageManager": "yarn@4.6.0",
+  "scripts": {
+    "start": "tsx index.ts",
+    "dev": "nodemon --exec tsx index.ts"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "node-ts": "^8.0.8",
+    "nodemon": "^3.1.10",
+    "tsx": "^4.20.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "ts-node": "^10.9.2"
+  }
+}
