@@ -111,3 +111,11 @@ Configure the frontend to point at your Models API via `NEXT_PUBLIC_API_URL`.
 - Frontend stack: Next.js 15, React 19, Tailwind 4, Radix UI, Vitest/RTL.
 - Backend stack: Express + TypeScript. Optional integrations (e.g., Gemini) require `GEMINI_API_KEY`.
 - Models: FastAPI + scikit-learn. See `models/exo_classification` for artifacts and notebooks.
+
+### Team Members:
+- Amul Poudel
+- Binod Dhakal
+- Gaurab Thapa Chhetri
+- Rastrabhusan Dahal
+- Samar Ranjit
+- Sudin Katuwal
