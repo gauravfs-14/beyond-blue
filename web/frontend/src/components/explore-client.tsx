@@ -30,7 +30,10 @@ export function ExploreClient({
 }: ExploreClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [filters, setFilters] = useState<FilterOptions>({ limit });
+  const [filters, setFilters] = useState<FilterOptions>({
+    limit,
+    disposition: "confirmed",
+  });
   const [sort, setSort] = useState<SortOption>({
     field: "pl_name",
     direction: "asc",
@@ -39,14 +42,27 @@ export function ExploreClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch planets when filters change
+  // Debounced filters to avoid flooding the backend during rapid input
+  const [debouncedFilters, setDebouncedFilters] = useState<FilterOptions>({
+    limit,
+    disposition: "confirmed",
+  });
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setDebouncedFilters(filters);
+    }, 400); // 400ms debounce window
+
+    return () => clearTimeout(handle);
+  }, [filters]);
+
+  // Fetch planets when debounced filters change
   useEffect(() => {
     // Only fetch from API if we have active filters
     const hasActiveFilters =
-      (filters.disposition && filters.disposition !== "all") ||
-      !!filters.search ||
-      !!filters.sy_dist ||
-      !!filters.limit;
+      !!debouncedFilters.disposition ||
+      !!debouncedFilters.search ||
+      !!debouncedFilters.sy_dist;
 
     if (!hasActiveFilters) {
       // Reset to initial planets when no filters are applied
@@ -62,9 +78,9 @@ export function ExploreClient({
 
       try {
         const response = await fetchPlanetsWithFilters({
-          ...filters,
-          limit: filters.limit || 50,
-          skip: (currentPage - 1) * (filters.limit || 50),
+          ...debouncedFilters,
+          limit: debouncedFilters.limit || 50,
+          skip: (currentPage - 1) * (debouncedFilters.limit || 50),
         });
 
         setPlanets(response.data);
@@ -79,7 +95,7 @@ export function ExploreClient({
     };
 
     fetchData();
-  }, [filters, currentPage, initialPlanets]);
+  }, [debouncedFilters, currentPage, initialPlanets]);
 
   const updatePage = (newPage: number) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -90,14 +106,14 @@ export function ExploreClient({
 
   const filteredAndSortedPlanets = useMemo(() => {
     // If we have API-based filters, use the fetched planets directly
-    if (filters.disposition || filters.search) {
+    if (debouncedFilters.disposition || debouncedFilters.search) {
       return sortPlanets(planets, sort);
     }
 
     // Otherwise, fall back to client-side filtering for legacy filters
-    const filtered = filterPlanets(planets, filters);
+    const filtered = filterPlanets(planets, debouncedFilters);
     return sortPlanets(filtered, sort);
-  }, [planets, filters, sort]);
+  }, [planets, debouncedFilters, sort]);
 
   // Check if we have more data available for pagination
   const hasMoreData = planets.length === (filters.limit || 50);

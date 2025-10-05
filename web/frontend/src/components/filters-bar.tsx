@@ -26,7 +26,9 @@ interface FiltersBarProps {
 }
 
 export function FiltersBar({ filters, onFiltersChange }: FiltersBarProps) {
-  const [localFilters, setLocalFilters] = useState<FilterOptions>(filters);
+  const [localFilters, setLocalFilters] = useState<FilterOptions>(
+    filters.disposition ? filters : { ...filters, disposition: "confirmed" }
+  );
 
   const handleApply = () => {
     onFiltersChange(localFilters);
@@ -66,12 +68,11 @@ export function FiltersBar({ filters, onFiltersChange }: FiltersBarProps) {
         <div className="flex items-center gap-2">
           <Label className="text-muted-foreground text-sm">Status:</Label>
           <Select
-            value={filters.disposition || "all"}
+            value={filters.disposition || "confirmed"}
             onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
                 disposition: value as
-                  | "all"
                   | "confirmed"
                   | "false_positive"
                   | "candidate",
@@ -82,7 +83,6 @@ export function FiltersBar({ filters, onFiltersChange }: FiltersBarProps) {
               <SelectValue placeholder="All planets" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All planets</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
               <SelectItem value="candidate">Candidate</SelectItem>
               <SelectItem value="false_positive">False Positive</SelectItem>
