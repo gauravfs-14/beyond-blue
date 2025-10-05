@@ -113,9 +113,10 @@ Configure the frontend to point at your Models API via `NEXT_PUBLIC_API_URL`.
 - Models: FastAPI + scikit-learn. See `models/exo_classification` for artifacts and notebooks.
 
 ### Team Members:
-- Amul Poudel
-- Binod Dhakal
-- Gaurab Thapa Chhetri
-- Rastrabhusan Dahal
-- Samar Ranjit
-- Sudin Katuwal - [GitHub](https://github.com/sudinkatuwal7) | [LinkedIn](https://www.linkedin.com/in/sudin-katuwal-111926361/)
+- Amul Poudel [LinkedIn](https://www.linkedin.com/in/amulpoudel/) | [GitHub](https://github.com/Amul-byte)  
+- Binod Dhakal [LinkedIn](https://www.linkedin.com/in/binod-dhakal/) | [GitHub](https://github.com/dhakalbinod)   
+- Gaurab Thapa Chhetri [LinkedIn](https://www.linkedin.com/in/gaurabchhetri/) | [GitHub](https://github.com/gauravfs-14)   
+- Rastrabhusan Dahal [LinkedIn](https://www.linkedin.com/in/rastrabhushan-dahal/) | [GitHub](https://github.com/11hritik11)
+- Samar Ranjit [LinkedIn](https://www.linkedin.com/in/samarranjit/) | [GitHub](https://github.com/samarranjit)
+- Sudin Katuwal [LinkedIn](https://www.linkedin.com/in/sudin-katuwal-111926361/) | [GitHub](https://github.com/sudinkatuwal7)
+
