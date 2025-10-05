@@ -1,4 +1,4 @@
-# Beyond Blue
+# 🔭 Beyond Blue
 
 An AI-powered platform to explore exoplanets: search and filter NASA exoplanet data, view rich planet profiles, and read AI-generated summaries and stories.
 
