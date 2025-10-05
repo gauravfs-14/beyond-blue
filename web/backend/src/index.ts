@@ -2,6 +2,8 @@ import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { Planet } from './models/planet';
+import cors from 'cors';
+
 // import { isSafeUrl, fetchHtml, extractMainText, extractHrefFromPlRefname } from './utils/summarize';
 import { generateText } from './services/gemini';
 import { streamGenerate } from './services/gemini'; // see streaming helper below
@@ -10,6 +12,9 @@ import { streamGenerate } from './services/gemini'; // see streaming helper belo
 // ---- App setup ----
 const app = express();
 app.use(express.json());
+app.use(cors({ origin: '*' }));
+
+
 
 const MONGO_URI = process.env.MONGO_URI;
 const PORT = Number(process.env.PORT ?? 3000);
@@ -55,12 +60,12 @@ mongoose.set('sanitizeFilter', true);
       serverSelectionTimeoutMS: 10000
       // If your URI does NOT include the DB, you can add: dbName: 'BeyondBlue'
     });
-    console.log('Connected to MongoDB');
+    // console.log('Connected to MongoDB');
 
     // Optional sanity logs:
     const conn = mongoose.connection;
-    console.log('DB:', conn.name, 'Host:', conn.host, 'Collection:', Planet.collection.name);
-    console.log('Planet count:', await Planet.estimatedDocumentCount());
+    // console.log('DB:', conn.name, 'Host:', conn.host, 'Collection:', Planet.collection.name);
+    // console.log('Planet count:', await Planet.estimatedDocumentCount());
   } catch (err) {
     console.error('MongoDB connection error:', err);
     process.exit(1);
@@ -201,7 +206,7 @@ app.get('/summarize/:id', async (req: Request<{ id: string }>, res: Response, ne
     const planet = await Planet.findById(id).lean().exec();
 
     if (!planet) return res.status(404).json({ error: 'Planet not found' });
-    console.log('Planet:', planet.pl_name, planet.hostname);
+    // console.log('Planet:', planet.pl_name, planet.hostname);
 
     // Build a concise prompt that passes the entire planet document to Gemini.
     // Ask for a factual, at-most-3-sentence summary and no extra text.
