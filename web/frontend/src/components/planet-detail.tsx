@@ -3,6 +3,7 @@ import { Field } from "@/components/primitives/field";
 import { fieldDescriptions } from "@/lib/field-descriptions";
 import { formatUncertainty, formatValue } from "@/lib/utils/planet-utils";
 import { PlanetGallery } from "@/components/planet-gallery";
+import { SerpGallery } from "@/components/serp-gallery";
 import { pickSampleImage } from "@/lib/utils/sample-images";
 import Image from "next/image";
 import { PlanetSummaryHeader } from "@/components/planet-summary-header";
@@ -91,19 +92,16 @@ export function PlanetDetail({ planet }: PlanetDetailProps) {
             {/* Right column: preview image on large screens */}
             <div className="hidden lg:block">
               <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-muted shadow-xl">
-                <Image
-                  src={
+                <SerpGallery
+                  query={`${planet.pl_name} exoplanet ${planet.hostname || ""}`}
+                  limit={8}
+                  fallbackImages={
                     planet.images && planet.images.length > 0
-                      ? planet.images[0]
-                      : pickSampleImage(planet._id)
+                      ? planet.images
+                      : undefined
                   }
-                  alt={`${planet.pl_name} preview`}
-                  fill
-                  className="object-cover"
+                  planetNameForFallback={planet.pl_name}
                 />
-                <div className="absolute bottom-2 left-2 rounded-full bg-black/50 px-2 py-0.5 text-[11px] text-white/80">
-                  Representative image
-                </div>
               </div>
             </div>
           </div>
@@ -114,24 +112,19 @@ export function PlanetDetail({ planet }: PlanetDetailProps) {
         <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
       </div>
       <div className="max-w-3xl mx-auto block lg:hidden">
-        {/* Gallery or Representative Image */}
-        {planet.images && planet.images.length > 0 ? (
-          <PlanetGallery images={planet.images} planetName={planet.pl_name} />
-        ) : (
-          <div className="relative overflow-hidden rounded-xl max-w-2xl mx-auto">
-            <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
-              <Image
-                src={pickSampleImage(planet._id)}
-                alt={`${planet.pl_name} representative`}
-                fill
-                className="object-cover"
-              />
-              <div className="absolute bottom-2 left-2 rounded-full bg-black/50 px-2 py-0.5 text-[11px] text-white/80">
-                Representative image
-              </div>
-            </div>
-          </div>
-        )}
+        {/* SerpAPI default; if empty/error falls back to any local images */}
+        <div className="relative overflow-hidden rounded-xl max-w-2xl mx-auto">
+          <SerpGallery
+            query={`${planet.pl_name} exoplanet ${planet.hostname || ""}`}
+            limit={8}
+            fallbackImages={
+              planet.images && planet.images.length > 0
+                ? planet.images
+                : undefined
+            }
+            planetNameForFallback={planet.pl_name}
+          />
+        </div>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">

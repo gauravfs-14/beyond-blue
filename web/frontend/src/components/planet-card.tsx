@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { SerpImage } from "@/components/serp-image";
 import type { Planet } from "@/lib/types";
 import { pickSampleImage } from "@/lib/utils/sample-images";
 import { formatValue } from "@/lib/utils/planet-utils";
@@ -23,26 +24,32 @@ export function PlanetCard({ planet }: PlanetCardProps) {
     unknown: "Unknown",
   };
 
-  const habitableZoneColor =
-    habitableZoneColors[planet.habitableZone || "unknown"];
-  const habitableZoneLabel =
-    habitableZoneLabels[planet.habitableZone || "unknown"];
+  const zoneKey = (planet.habitableZone ||
+    "unknown") as keyof typeof habitableZoneColors;
+  const habitableZoneColor = habitableZoneColors[zoneKey];
+  const habitableZoneLabel = habitableZoneLabels[zoneKey];
+  const showHabitableBadge =
+    planet.habitableZone !== undefined && planet.habitableZone !== "unknown";
 
   return (
     <Link
       href={`/planet/${planet._id}`}
       className="group block overflow-hidden rounded-xl border border-border bg-card/50 shadow-sm backdrop-blur-sm transition-smooth hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10"
     >
-      {planet.images && planet.images.length > 0 ? (
-        <div className="relative aspect-video overflow-hidden bg-muted">
-          <Image
-            src={planet.images[0] || "/placeholder.svg"}
-            alt={planet.pl_name}
-            fill
-            className="object-cover transition-all duration-500 group-hover:scale-110"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+      <div className="relative aspect-video overflow-hidden bg-muted">
+        <SerpImage
+          query={`${planet.pl_name} exoplanet ${planet.hostname || ""}`}
+          fallbackUrl={
+            planet.images && planet.images.length > 0
+              ? planet.images[0]
+              : pickSampleImage(planet._id)
+          }
+          alt={planet.pl_name}
+          className="object-cover transition-all duration-500 group-hover:scale-110"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 
+        {showHabitableBadge && (
           <div className="absolute top-3 right-3 flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-1.5 backdrop-blur-md">
             <div
               className={`h-2 w-2 rounded-full ${habitableZoneColor} shadow-lg`}
@@ -52,24 +59,8 @@ export function PlanetCard({ planet }: PlanetCardProps) {
               {habitableZoneLabel}
             </span>
           </div>
-          <div className="absolute bottom-2 left-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white/80">
-            Representative image
-          </div>
-        </div>
-      ) : (
-        <div className="relative aspect-video overflow-hidden bg-muted">
-          <Image
-            src={pickSampleImage(planet._id)}
-            alt={`${planet.pl_name} representative`}
-            fill
-            className="object-cover scale-105 transition-all duration-500 group-hover:scale-110"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-          <div className="absolute bottom-2 left-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white/80">
-            Representative image
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="space-y-4 p-6">
         <div className="space-y-2">
