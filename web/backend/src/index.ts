@@ -2,8 +2,10 @@ import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { Planet } from './models/planet';
-import { isSafeUrl, fetchHtml, extractMainText, extractHrefFromPlRefname } from './utils/summarize';
-import { summarizePlanetFromPaper } from './services/gemini';
+// import { isSafeUrl, fetchHtml, extractMainText, extractHrefFromPlRefname } from './utils/summarize';
+import { generateText } from './services/gemini';
+import { streamGenerate } from './services/gemini'; // see streaming helper below
+
 
 // ---- App setup ----
 const app = express();
@@ -201,25 +203,29 @@ app.get('/summarize/:id', async (req: Request<{ id: string }>, res: Response, ne
     if (!planet) return res.status(404).json({ error: 'Planet not found' });
     console.log('Planet:', planet.pl_name, planet.hostname);
 
-    // extract URL from pl_refname
-    const href = extractHrefFromPlRefname((planet as any).pl_refname);
-    if (!href) return res.status(400).json({ error: 'No link found in pl_refname' });
-    if (!isSafeUrl(href)) return res.status(400).json({ error: 'Unsafe or unsupported URL' });
+    // Build a concise prompt that passes the entire planet document to Gemini.
+    // Ask for a factual, at-most-3-sentence summary and no extra text.
+    const MAX = 150_000;
+    const planetJson = JSON.stringify(planet, null, 2);
+    const clipped = planetJson.length > MAX ? planetJson.slice(0, MAX) : planetJson;
 
-    // fetch + extract readable text
-    const html = await fetchHtml(href, 15000);
-    const { title, text } = extractMainText(html, href);
-    if (!text || text.length < 200) {
-      return res.status(422).json({ error: 'Could not extract enough text to summarize', sourceUrl: href });
-    }
+    const prompt = [
+      'You are an expert astrophysics summarizer.',
+      'Task: Given the following JSON document that represents a planet record, produce a concise factual summary about the planet in AT MOST 5 sentences.',
+      'Constraints:',
+      '- Use ONLY the information present in the provided JSON. Do NOT add outside knowledge or hallucinate.',
+      "- Return ONLY the summary text (no headers, labels, or commentary).",
+      '',
+      'Planet JSON:',
+      clipped
+    ].join('\n');
 
-  // call Gemini to produce a summary about this specific planet using only the paper
-  const summary = await summarizePlanetFromPaper(String(planet.pl_name), text);
+    const summary = await generateText(prompt);
 
     const payload = {
       id,
-      sourceUrl: href,
-      title: title ?? null,
+      // no sourceUrl when summarizing from DB record
+      title: (planet as any).pl_name ?? null,
       summaryModel: 'gemini-2.5-flash',
       summary
     };
@@ -239,6 +245,64 @@ app.get('/summarize/:id', async (req: Request<{ id: string }>, res: Response, ne
 });
 
 
+app.get('/stream-summary/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).end();
+
+  const planet = await Planet.findById(id).lean().exec();
+  if (!planet) return res.status(404).end();
+
+  // Prepare prompt (example)
+  const prompt = [
+    'You are an expert astrophysics summarizer.',
+    'Produce a concise factual summary about the planet in AT MOST 3 sentences.',
+    '- Use ONLY information present in the JSON below. No outside knowledge.',
+    '- Return only the summary text (no headings, no commentary).',
+    '',
+    'Planet JSON:',
+    JSON.stringify(planet, null, 2)
+  ].join('\n');
+
+  // SSE headers
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  // Prevent nginx buffering
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  // Flush headers (once)
+  res.flushHeaders?.();
+
+  // Close response when client disconnects
+  const onClose = () => {
+    // If your SDK supports cancel token/abort, call it here.
+    req.off('close', onClose);
+    res.end();
+  };
+  req.on('close', onClose);
+
+  try {
+    // streamGenerate yields strings (chunks)
+    const stream = streamGenerate(prompt);
+
+    for await (const chunk of stream) {
+      // sanitize chunk if needed
+      const safe = (chunk ?? '').toString();
+      // SSE message (send JSON payload so you can add metadata)
+      res.write(`data: ${JSON.stringify({ chunk: safe })}\n\n`);
+      // flush if available
+      (res as any).flush?.();
+    }
+
+    // done event
+    res.write(`event: done\ndata: {}\n\n`);
+    res.end();
+  } catch (err: any) {
+    // send error as SSE event, then close
+    res.write(`event: error\ndata: ${JSON.stringify({ message: err?.message ?? String(err) })}\n\n`);
+    res.end();
+  }
+});
 
 
 // Root
