@@ -8,7 +8,6 @@ import cors from 'cors';
 import { generateText } from './services/gemini';
 import { streamGenerate } from './services/gemini'; // see streaming helper below
 
-
 // ---- App setup ----
 const app = express();
 app.use(express.json());
@@ -20,13 +19,9 @@ const MONGO_URI = process.env.MONGO_URI;
 const PORT = Number(process.env.PORT ?? 3000);
 
 if (!MONGO_URI) {
-  console.error('Error: MONGO_URI environment variable is not set.');
+  console.error("Error: MONGO_URI environment variable is not set.");
   process.exit(1);
 }
-
-
-
-
 
 const summaryCache = new Map<string, { at: number; data: any }>();
 const CACHE_TTL_MS = 1000 * 60 * 60; // 1 hour
@@ -44,30 +39,23 @@ function setCached(id: string, data: any) {
   summaryCache.set(id, { at: Date.now(), data });
 }
 
-
-
-
-
-
-
-
 // ---- Mongo (Mongoose v8+) ----
-mongoose.set('sanitizeFilter', true);
+mongoose.set("sanitizeFilter", true);
 
 (async () => {
   try {
     await mongoose.connect(MONGO_URI, {
-      serverSelectionTimeoutMS: 10000
+      serverSelectionTimeoutMS: 10000,
       // If your URI does NOT include the DB, you can add: dbName: 'BeyondBlue'
     });
     // console.log('Connected to MongoDB');
-
     // Optional sanity logs:
     const conn = mongoose.connection;
     // console.log('DB:', conn.name, 'Host:', conn.host, 'Collection:', Planet.collection.name);
     // console.log('Planet count:', await Planet.estimatedDocumentCount());
+
   } catch (err) {
-    console.error('MongoDB connection error:', err);
+    console.error("MongoDB connection error:", err);
     process.exit(1);
   }
 })();
@@ -82,7 +70,11 @@ const parseNum = (v: unknown, d: number) => {
 
 type SortSpec = Record<string, 1 | -1> | undefined;
 
-function getPaging(q: Request['query']): { limit: number; skip: number; sort: SortSpec } {
+function getPaging(q: Request["query"]): {
+  limit: number;
+  skip: number;
+  sort: SortSpec;
+} {
   const MAX_LIMIT = 200;
   const limit = Math.min(Math.max(parseNum(q.limit, 100), 1), MAX_LIMIT);
   const skip = Math.max(parseNum(q.skip, 0), 0);
@@ -90,15 +82,17 @@ function getPaging(q: Request['query']): { limit: number; skip: number; sort: So
   let sort: SortSpec = undefined;
   if (q.sort) {
     sort = {};
-    const parts = String(q.sort).split(',').map((s) => s.trim());
+    const parts = String(q.sort)
+      .split(",")
+      .map((s) => s.trim());
     for (const p of parts) {
       if (!p) continue;
-      if (p.includes(':')) {
-        const [k, dir] = p.split(':');
+      if (p.includes(":")) {
+        const [k, dir] = p.split(":");
         (sort as Record<string, 1 | -1>)[k] = Number(dir) < 0 ? -1 : 1;
       } else {
-        const key = p.replace(/^-/, '');
-        (sort as Record<string, 1 | -1>)[key] = p.startsWith('-') ? -1 : 1;
+        const key = p.replace(/^-/, "");
+        (sort as Record<string, 1 | -1>)[key] = p.startsWith("-") ? -1 : 1;
       }
     }
   }
@@ -106,12 +100,14 @@ function getPaging(q: Request['query']): { limit: number; skip: number; sort: So
 }
 
 // ---- Health ----
-app.get('/ping', (_req: Request, res: Response) => res.json({ ok: true, message: 'pong' }));
+app.get("/ping", (_req: Request, res: Response) =>
+  res.json({ ok: true, message: "pong" })
+);
 
 // ===================== PLANETS =====================
 
 // GET /planets?pl_name=&hostname=&disposition=&disc_year=
-app.get('/planets', async (req: Request, res: Response, next: NextFunction) => {
+app.get("/planets", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { limit, skip, sort } = getPaging(req.query);
 
@@ -124,9 +120,15 @@ app.get('/planets', async (req: Request, res: Response, next: NextFunction) => {
       if (Number.isFinite(y)) filter.disc_year = y;
     }
 
-    if (req.query.pl_name) filter.pl_name = new RegExp(`^${String(req.query.pl_name)}$`, 'i');
-    if (req.query.hostname) filter.hostname = new RegExp(`^${String(req.query.hostname)}$`, 'i');
-    if (req.query.disposition) filter.disposition = new RegExp(`^${String(req.query.disposition)}$`, 'i');
+    if (req.query.pl_name)
+      filter.pl_name = new RegExp(`^${String(req.query.pl_name)}$`, "i");
+    if (req.query.hostname)
+      filter.hostname = new RegExp(`^${String(req.query.hostname)}$`, "i");
+    if (req.query.disposition)
+      filter.disposition = new RegExp(
+        `^${String(req.query.disposition)}$`,
+        "i"
+      );
 
     const q = Planet.find(filter).skip(skip).limit(limit).lean();
     if (sort) q.sort(sort);
@@ -137,60 +139,54 @@ app.get('/planets', async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-app.get('/planets/:_id', async (req: Request<{ _id: string }>, res: Response, next: NextFunction) => {
-  try {
-    const { _id } = req.params;
-    if (!isValidId(_id)) return res.status(400).json({ error: 'Invalid ID' });
+app.get(
+  "/planets/:_id",
+  async (req: Request<{ _id: string }>, res: Response, next: NextFunction) => {
+    try {
+      const { _id } = req.params;
+      if (!isValidId(_id)) return res.status(400).json({ error: "Invalid ID" });
 
-    const doc = await Planet.findById(_id).lean().exec();
-    if (!doc) return res.status(404).json({ error: 'Not found' });
-    return res.json(doc);
+      const doc = await Planet.findById(_id).lean().exec();
+      if (!doc) return res.status(404).json({ error: "Not found" });
+      return res.json(doc);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// Search for a specific parameter
+
+app.get("/confirmed", async (req, res, next) => {
+  try {
+    const { limit, skip, sort } = getPaging(req.query);
+    const q = Planet.find({ disposition: /^CONFIRMED$/i })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+    if (sort) q.sort(sort);
+    const docs = await q.exec();
+    return res.json(docs);
+  } catch (err) {
+    next(err);
+  }
+});
+app.get("/candidate", async (req, res, next) => {
+  try {
+    const { limit, skip, sort } = getPaging(req.query);
+    const q = Planet.find({ disposition: /^Candidate$/i })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+    if (sort) q.sort(sort);
+    const docs = await q.exec();
+    return res.json(docs);
   } catch (err) {
     next(err);
   }
 });
 
-
-// Search for a specific parameter
-
-
-
-app.get('/confirmed', async (req, res, next) => {
-    try {
-        const { limit, skip, sort } = getPaging(req.query);
-        const q = Planet.find({ disposition: /^CONFIRMED$/i }).skip(skip).limit(limit).lean();
-        if (sort) q.sort(sort);
-        const docs = await q.exec();
-        return res.json(docs);
-    } catch (err) {
-        next(err);
-    }
-});
-app.get('/candidate', async (req, res, next) => {
-    try {
-        const { limit, skip, sort } = getPaging(req.query);
-        const q = Planet.find({ disposition: /^Candidate$/i }).skip(skip).limit(limit).lean();
-        if (sort) q.sort(sort);
-        const docs = await q.exec();
-        return res.json(docs);
-    } catch (err) {
-        next(err);
-    }
-});
-
-app.get('/false_positive', async (req, res, next) => {
-    try {
-        const { limit, skip, sort } = getPaging(req.query);
-        const q = Planet.find({ disposition: /^FALSE POSITIVE$/i }).skip(skip).limit(limit).lean();
-        if (sort) q.sort(sort);
-        const docs = await q.exec();
-        return res.json(docs);
-    } catch (err) {
-        next(err);
-    }
-});
-
-app.get('/summarize/:id', async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
+app.get("/false_positive", async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -245,10 +241,20 @@ app.get('/summarize/:id', async (req: Request<{ id: string }>, res: Response, ne
     if (err?.name === 'AbortError') {
       return res.status(504).json({ error: 'Upstream fetch timed out' });
     }
+
     next(err);
   }
 });
 
+app.get(
+  "/summarize/:id",
+  async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "Invalid ID" });
+      }
 
 app.get('/stream-summary/:id', async (req, res) => {
   const { id } = req.params;
@@ -309,10 +315,40 @@ app.get('/stream-summary/:id', async (req, res) => {
   }
 });
 
+      // call Gemini to produce a summary about this specific planet using only the paper
+      const summary = await summarizePlanetFromPaper(
+        String(planet.pl_name),
+        text
+      );
+
+      const payload = {
+        id,
+        sourceUrl: href,
+        title: title ?? null,
+        summaryModel: "gemini-2.5-flash",
+        summary,
+      };
+
+      setCached(id, payload);
+      return res.json(payload);
+    } catch (err: any) {
+      // Friendly errors for common cases
+      if (err?.code === "NO_LLM") {
+        return res
+          .status(501)
+          .json({ error: "LLM not configured. Set GOOGLE_API_KEY." });
+      }
+      if (err?.name === "AbortError") {
+        return res.status(504).json({ error: "Upstream fetch timed out" });
+      }
+      next(err);
+    }
+  }
+);
 
 // Root
-app.get('/', (_req: Request, res: Response) => {
-  res.send('Welcome to the Exoplanet API. Use /planets endpoints to explore.');
+app.get("/", (_req: Request, res: Response) => {
+  res.send("Welcome to the Exoplanet API. Use /planets endpoints to explore.");
 });
 
 
@@ -359,16 +395,20 @@ app.get('/search', async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 // 404
-app.use((_req: Request, res: Response) => res.status(404).json({ error: 'Route not found' }));
+app.use((_req: Request, res: Response) =>
+  res.status(404).json({ error: "Route not found" })
+);
 
 // Global error handler
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err);
-  if (err?.name === 'ValidationError') {
-    return res.status(400).json({ error: 'ValidationError', details: err.errors });
+  if (err?.name === "ValidationError") {
+    return res
+      .status(400)
+      .json({ error: "ValidationError", details: err.errors });
   }
-  res.status(500).json({ error: 'Server error' });
+  res.status(500).json({ error: "Server error" });
 });
 
 
