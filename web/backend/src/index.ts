@@ -315,6 +315,49 @@ app.get('/', (_req: Request, res: Response) => {
   res.send('Welcome to the Exoplanet API. Use /planets endpoints to explore.');
 });
 
+
+app.get('/search', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Read paging/sort first
+    const { limit, skip, sort } = getPaging(req.query);
+
+    // Parse known query parameters. We'll treat any provided param as a required
+    // filter (AND across params). `q` is a free-text that searches several fields
+    // but is ANDed with other provided params.
+    let keys = Object.keys(req.query);
+    const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const filter: Record<string, unknown> = {};
+
+    for (const key of keys) {
+      const keyValue = req.query[key] ? String(req.query[key]).trim() : undefined;
+      if (keyValue) {
+        filter[key] = new RegExp(escapeRegex(keyValue), 'i');
+      }
+    }
+    const qtext = req.query.q ? String(req.query.q).trim() : undefined;
+
+    if (filter[keys[keys.length-1]]) {
+      // qtext must also match (AND) — we implement qtext as an $or across fields,
+      // then include that $or clause together with other field-level filters.
+      filter.$and = filter.$and ?? [];
+      (filter.$and as any[]).push({
+        $or: [
+          { pl_name: new RegExp(escapeRegex(qtext ?? ''), 'i') },
+          { hostname: new RegExp(escapeRegex(qtext ?? ''), 'i') },
+          { disposition: new RegExp(escapeRegex(qtext ?? ''), 'i') }
+        ]
+      });
+    }
+
+    // Execute query
+    const query = Planet.find(filter).skip(skip).limit(limit).lean();
+    if (sort) query.sort(sort);
+    const [docs, total] = await Promise.all([query.exec(), Planet.countDocuments(filter)]);
+    return res.json({ total, limit, skip, docs });
+  } catch (err) {
+    next(err);
+  }
+});
 // 404
 app.use((_req: Request, res: Response) => res.status(404).json({ error: 'Route not found' }));
 
@@ -327,6 +370,8 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   }
   res.status(500).json({ error: 'Server error' });
 });
+
+
 
 // Start server (after file is loaded; connection is async but that’s fine)
 app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
