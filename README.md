@@ -118,4 +118,4 @@ Configure the frontend to point at your Models API via `NEXT_PUBLIC_API_URL`.
 - Gaurab Thapa Chhetri
 - Rastrabhusan Dahal
 - Samar Ranjit
-- Sudin Katuwal
+- Sudin Katuwal - [GitHub](https://github.com/sudinkatuwal7) | [LinkedIn](https://www.linkedin.com/in/sudin-katuwal-111926361/)
