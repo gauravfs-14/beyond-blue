@@ -22,12 +22,12 @@ export default async function PlanetPage({ params }: PlanetPageProps) {
   return (
     <main className="container mx-auto px-6 py-12">
       <div className="mx-auto max-w-5xl space-y-6">
-        <Button variant="ghost" size="sm" asChild>
+        {/* <Button variant="ghost" size="sm" asChild>
           <Link href="/explore">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Explore
           </Link>
-        </Button>
+        </Button> */}
 
         <PlanetDetail planet={planet} />
       </div>

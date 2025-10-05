@@ -6,13 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Filter, X, Search } from "lucide-react";
 import type { FilterOptions } from "@/lib/types";
-// import { discoveryMethods, habitableZones } from "@/lib/utils/constants";
 
 interface FiltersBarProps {
   filters: FilterOptions;
@@ -27,7 +33,7 @@ export function FiltersBar({ filters, onFiltersChange }: FiltersBarProps) {
   };
 
   const handleReset = () => {
-    const emptyFilters: FilterOptions = {};
+    const emptyFilters: FilterOptions = { limit: filters.limit };
     setLocalFilters(emptyFilters);
     onFiltersChange(emptyFilters);
   };
@@ -41,17 +47,48 @@ export function FiltersBar({ filters, onFiltersChange }: FiltersBarProps) {
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-border/50 bg-card/50 p-6 shadow-sm backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
-      <div className="relative flex-1">
-        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder="Search planets or host stars..."
-          value={filters.search || ""}
-          onChange={(e) =>
-            onFiltersChange({ ...filters, search: e.target.value })
-          }
-          className="max-w-md border-border/50 bg-background/50 pl-10 shadow-sm backdrop-blur-sm transition-smooth focus:border-primary/50"
-        />
+      <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-center">
+        {/* Search Input */}
+        <div className="relative flex-1">
+          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search planets or host stars..."
+            value={filters.search || ""}
+            onChange={(e) =>
+              onFiltersChange({ ...filters, search: e.target.value })
+            }
+            className="max-w-md border-border/50 bg-background/50 pl-10 shadow-sm backdrop-blur-sm transition-smooth focus:border-primary/50"
+          />
+        </div>
+
+        {/* Disposition Filter */}
+        <div className="flex items-center gap-2">
+          <Label className="text-muted-foreground text-sm">Status:</Label>
+          <Select
+            value={filters.disposition || "all"}
+            onValueChange={(value) =>
+              onFiltersChange({
+                ...filters,
+                disposition: value as
+                  | "all"
+                  | "confirmed"
+                  | "false_positive"
+                  | "candidate",
+              })
+            }
+          >
+            <SelectTrigger className="w-[140px] border-border/50 bg-background/50 shadow-sm backdrop-blur-sm">
+              <SelectValue placeholder="All planets" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All planets</SelectItem>
+              <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="candidate">Candidate</SelectItem>
+              <SelectItem value="false_positive">False Positive</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Popover>
@@ -83,69 +120,38 @@ export function FiltersBar({ filters, onFiltersChange }: FiltersBarProps) {
               </Button>
             </div>
 
+            {/* Pagination Controls */}
+            <div className="space-y-3">
+              <Label className="font-medium text-sm">Results per page</Label>
+              <Select
+                value={localFilters.limit?.toString() || "50"}
+                onValueChange={(value) =>
+                  setLocalFilters({
+                    ...localFilters,
+                    limit: Number(value),
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="200">200</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Discovery Method */}
             <div className="space-y-3">
               <Label className="font-medium text-sm">Discovery Method</Label>
               <div className="space-y-2">
-                {/* {discoveryMethods.map((method: string) => (
-                  <div key={method} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`method-${method}`}
-                      checked={
-                        localFilters.discoverymethod?.includes(method) || false
-                      }
-                      onCheckedChange={(checked) => {
-                        const current = localFilters.discoverymethod || [];
-                        const updated = checked
-                          ? [...current, method]
-                          : current.filter((m) => m !== method);
-                        setLocalFilters({
-                          ...localFilters,
-                          discoverymethod: updated,
-                        });
-                      }}
-                    />
-                    <label
-                      htmlFor={`method-${method}`}
-                      className="cursor-pointer text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      {method}
-                    </label>
-                  </div>
-                ))} */}
-              </div>
-            </div>
-
-            {/* Habitable Zone */}
-            <div className="space-y-3">
-              <Label className="font-medium text-sm">Habitable Zone</Label>
-              <div className="space-y-2">
-                {/* {habitableZones.map((zone: string) => (
-                  <div key={zone} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`zone-${zone}`}
-                      checked={
-                        localFilters.habitableZone?.includes(zone) || false
-                      }
-                      onCheckedChange={(checked) => {
-                        const current = localFilters.habitableZone || [];
-                        const updated = checked
-                          ? [...current, zone]
-                          : current.filter((z) => z !== zone);
-                        setLocalFilters({
-                          ...localFilters,
-                          habitableZone: updated,
-                        });
-                      }}
-                    />
-                    <label
-                      htmlFor={`zone-${zone}`}
-                      className="cursor-pointer text-sm capitalize leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      {zone}
-                    </label>
-                  </div>
-                ))} */}
+                <div className="text-muted-foreground text-sm">
+                  Discovery method filtering will be available in future
+                  updates.
+                </div>
               </div>
             </div>
 
@@ -176,6 +182,43 @@ export function FiltersBar({ filters, onFiltersChange }: FiltersBarProps) {
                       ...localFilters,
                       disc_year: {
                         ...localFilters.disc_year,
+                        max: Number(e.target.value) || undefined,
+                      },
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Distance from Earth Range */}
+            <div className="space-y-3">
+              <Label className="font-medium text-sm">
+                Distance from Earth (light-years)
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  value={localFilters.sy_dist?.min || ""}
+                  onChange={(e) =>
+                    setLocalFilters({
+                      ...localFilters,
+                      sy_dist: {
+                        ...localFilters.sy_dist,
+                        min: Number(e.target.value) || undefined,
+                      },
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={localFilters.sy_dist?.max || ""}
+                  onChange={(e) =>
+                    setLocalFilters({
+                      ...localFilters,
+                      sy_dist: {
+                        ...localFilters.sy_dist,
                         max: Number(e.target.value) || undefined,
                       },
                     })

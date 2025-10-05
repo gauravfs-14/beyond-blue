@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Planet } from "@/lib/types";
+import { pickSampleImage } from "@/lib/utils/sample-images";
 import { formatValue } from "@/lib/utils/planet-utils";
 
 interface PlanetCardProps {
@@ -32,8 +33,8 @@ export function PlanetCard({ planet }: PlanetCardProps) {
       href={`/planet/${planet._id}`}
       className="group block overflow-hidden rounded-xl border border-border bg-card/50 shadow-sm backdrop-blur-sm transition-smooth hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10"
     >
-      {planet.images && planet.images.length > 0 && (
-        <div className="relative aspect-square overflow-hidden bg-muted">
+      {planet.images && planet.images.length > 0 ? (
+        <div className="relative aspect-video overflow-hidden bg-muted">
           <Image
             src={planet.images[0] || "/placeholder.svg"}
             alt={planet.pl_name}
@@ -50,6 +51,22 @@ export function PlanetCard({ planet }: PlanetCardProps) {
             <span className="text-white text-xs font-medium">
               {habitableZoneLabel}
             </span>
+          </div>
+          <div className="absolute bottom-2 left-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white/80">
+            Representative image
+          </div>
+        </div>
+      ) : (
+        <div className="relative aspect-video overflow-hidden bg-muted">
+          <Image
+            src={pickSampleImage(planet._id)}
+            alt={`${planet.pl_name} representative`}
+            fill
+            className="object-cover scale-105 transition-all duration-500 group-hover:scale-110"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+          <div className="absolute bottom-2 left-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white/80">
+            Representative image
           </div>
         </div>
       )}

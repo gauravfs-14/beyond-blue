@@ -5,6 +5,8 @@ import { Header } from "@/components/header";
 import { Suspense } from "react";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CosmicBackground } from "@/components/ui/cosmic-background";
+import { Footer } from "@/components/footer";
+import { MeteorsOverlay } from "@/components/ui/meteors";
 
 export const metadata: Metadata = {
   title: "Beyond Blue - Exoplanet Explorer",
@@ -28,8 +30,10 @@ export default function RootLayout({
         >
           <CosmicBackground>
             <Suspense fallback={null}>
+              <MeteorsOverlay />
               <Header />
               {children}
+              <Footer />
             </Suspense>
           </CosmicBackground>
         </ThemeProvider>

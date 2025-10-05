@@ -17,7 +17,8 @@ export default function AboutPage() {
             About <span className="text-primary">Beyond Blue</span>
           </h1>
           <p className="text-balance text-muted-foreground text-lg leading-relaxed">
-            Your gateway to exploring the universe of confirmed exoplanets
+            A focused exoplanet explorer: high‑quality data from NASA's archive,
+            practical filters, and an optional ML classifier.
           </p>
         </div>
 
@@ -30,16 +31,14 @@ export default function AboutPage() {
             <h2 className="font-semibold text-2xl">Our Mission</h2>
           </div>
           <p className="mb-4 text-muted-foreground leading-relaxed">
-            Beyond Blue makes NASA's exoplanet data accessible and explorable
-            for everyone. We believe that understanding worlds beyond our own
-            should be intuitive, engaging, and available to curious minds
-            everywhere.
+            Beyond Blue turns NASA's exoplanet catalog into an approachable tool
+            for exploration and learning. We prioritize clarity, scientific
+            context, and usability over flashy visuals.
           </p>
           <p className="text-muted-foreground leading-relaxed">
-            Whether you're a student, researcher, educator, or space enthusiast,
-            our platform provides the tools to discover, filter, and analyze
-            thousands of confirmed exoplanets with comprehensive scientific
-            data.
+            Whether you're a student, educator or researcher, you can browse,
+            filter and analyze confirmed planets with the same core parameters
+            used in the literature.
           </p>
         </section>
 
@@ -51,13 +50,10 @@ export default function AboutPage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Database className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg">
-                Comprehensive Database
-              </h3>
+              <h3 className="mb-2 font-semibold text-lg">Curated Dataset</h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Access over 5,000 confirmed exoplanets with 60+ parameters
-                including orbital characteristics, stellar properties, and
-                measurement uncertainties.
+                5,000+ confirmed exoplanets with 60+ fields: orbital,
+                photometric and stellar properties, including uncertainties.
               </p>
             </div>
 
@@ -65,11 +61,10 @@ export default function AboutPage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Globe className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mb-2 font-semibold text-lg">Advanced Filtering</h3>
+              <h3 className="mb-2 font-semibold text-lg">Purposeful Filters</h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Filter planets by discovery method, habitable zone location,
-                orbital period, mass, radius, and dozens of other scientific
-                parameters.
+                Filter by disposition (Confirmed/Candidate/False Positive),
+                search by name, and narrow by period, radius, mass and distance.
               </p>
             </div>
 
@@ -79,9 +74,9 @@ export default function AboutPage() {
               </div>
               <h3 className="mb-2 font-semibold text-lg">ML Classification</h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Experiment with our machine learning classifier that categorizes
-                planets based on their physical characteristics and orbital
-                properties.
+                A FastAPI service serves a trained Random Forest. You provide a
+                few KOI‑style inputs; we return probability and a clear
+                confidence label.
               </p>
             </div>
 

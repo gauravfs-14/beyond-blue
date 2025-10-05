@@ -3,6 +3,8 @@ import { Field } from "@/components/primitives/field";
 import { fieldDescriptions } from "@/lib/field-descriptions";
 import { formatUncertainty, formatValue } from "@/lib/utils/planet-utils";
 import { PlanetGallery } from "@/components/planet-gallery";
+import { pickSampleImage } from "@/lib/utils/sample-images";
+import Image from "next/image";
 import { PlanetSummaryHeader } from "@/components/planet-summary-header";
 import { MapPin, Calendar } from "lucide-react";
 
@@ -27,69 +29,110 @@ export function PlanetDetail({ planet }: PlanetDetailProps) {
 
   return (
     <div className="space-y-12">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 p-8 md:p-12">
-        <div className="relative z-10 space-y-6">
-          {/* Planet Name and Host Star */}
-          <div className="space-y-3">
-            <h1 className="text-balance font-bold text-4xl leading-tight tracking-tight md:text-5xl lg:text-6xl">
-              {planet.pl_name}
-            </h1>
-            {planet.tagline && (
-              <p className="text-balance font-medium text-primary text-xl leading-snug md:text-2xl">
-                {planet.tagline}
-              </p>
-            )}
-            <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                <span className="text-sm">Orbiting {planet.hostname}</span>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 p-2">
+        <div className="relative z-10">
+          <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+            {/* Left column: title, meta, summary */}
+            <div className="space-y-6 p-4 lg:p-8">
+              {/* Planet Name and Host Star */}
+              <div className="space-y-3">
+                <h1 className="text-balance font-bold text-2xl leading-tight tracking-tight md:text-3xl lg:text-4xl">
+                  {planet.pl_name}
+                </h1>
+                {planet.tagline && (
+                  <p className="text-balance font-medium text-primary text-xl leading-snug md:text-2xl">
+                    {planet.tagline}
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    <span className="text-sm">Orbiting {planet.hostname}</span>
+                  </div>
+                  {planet.disc_year && (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <span className="text-sm">
+                        Discovered {planet.disc_year}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-              {planet.disc_year && (
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  <span className="text-sm">Discovered {planet.disc_year}</span>
+
+              {/* Habitable Zone Badge */}
+              {planet.habitableZone && (
+                <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-4 py-2 backdrop-blur-sm">
+                  <div
+                    className={`h-2.5 w-2.5 rounded-full ${
+                      planet.habitableZone === "habitable"
+                        ? "bg-green-500"
+                        : planet.habitableZone === "inner"
+                        ? "bg-orange-500"
+                        : planet.habitableZone === "outer"
+                        ? "bg-blue-500"
+                        : "bg-gray-500"
+                    }`}
+                  />
+                  <span
+                    className={`font-medium text-sm ${
+                      habitableZoneColors[planet.habitableZone]
+                    }`}
+                  >
+                    {habitableZoneLabels[planet.habitableZone]}
+                  </span>
                 </div>
               )}
+
+              {/* AI Summary */}
+              <PlanetSummaryHeader planetId={planet._id} />
+            </div>
+
+            {/* Right column: preview image on large screens */}
+            <div className="hidden lg:block">
+              <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-muted shadow-xl">
+                <Image
+                  src={
+                    planet.images && planet.images.length > 0
+                      ? planet.images[0]
+                      : pickSampleImage(planet._id)
+                  }
+                  alt={`${planet.pl_name} preview`}
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute bottom-2 left-2 rounded-full bg-black/50 px-2 py-0.5 text-[11px] text-white/80">
+                  Representative image
+                </div>
+              </div>
             </div>
           </div>
-
-          {/* Habitable Zone Badge */}
-          {planet.habitableZone && (
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-4 py-2 backdrop-blur-sm">
-              <div
-                className={`h-2.5 w-2.5 rounded-full ${
-                  planet.habitableZone === "habitable"
-                    ? "bg-green-500"
-                    : planet.habitableZone === "inner"
-                    ? "bg-orange-500"
-                    : planet.habitableZone === "outer"
-                    ? "bg-blue-500"
-                    : "bg-gray-500"
-                }`}
-              />
-              <span
-                className={`font-medium text-sm ${
-                  habitableZoneColors[planet.habitableZone]
-                }`}
-              >
-                {habitableZoneLabels[planet.habitableZone]}
-              </span>
-            </div>
-          )}
-
-          {/* AI Summary */}
-          <PlanetSummaryHeader planetId={planet._id} />
         </div>
 
         {/* Decorative background element */}
         <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
       </div>
-
-      {/* Gallery */}
-      {planet.images && planet.images.length > 0 && (
-        <PlanetGallery images={planet.images} planetName={planet.pl_name} />
-      )}
+      <div className="max-w-3xl mx-auto block lg:hidden">
+        {/* Gallery or Representative Image */}
+        {planet.images && planet.images.length > 0 ? (
+          <PlanetGallery images={planet.images} planetName={planet.pl_name} />
+        ) : (
+          <div className="relative overflow-hidden rounded-xl max-w-2xl mx-auto">
+            <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
+              <Image
+                src={pickSampleImage(planet._id)}
+                alt={`${planet.pl_name} representative`}
+                fill
+                className="object-cover"
+              />
+              <div className="absolute bottom-2 left-2 rounded-full bg-black/50 px-2 py-0.5 text-[11px] text-white/80">
+                Representative image
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Discovery & Basic Info */}

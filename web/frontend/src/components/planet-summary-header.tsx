@@ -92,9 +92,11 @@ export function PlanetSummaryHeader({ planetId }: PlanetSummaryHeaderProps) {
       )}
 
       {streamingSummary && (
-        <div className="text-foreground/90 text-lg leading-relaxed">
+        <div className="text-foreground/90 leading-relaxed text-sm">
           {streamingSummary}
-          {isStreaming && <span className="animate-pulse text-primary">|</span>}
+          {isStreaming && (
+            <span className="animate-pulse text-primary text-sm">|</span>
+          )}
         </div>
       )}
     </div>

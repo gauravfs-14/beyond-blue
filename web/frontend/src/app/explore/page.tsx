@@ -20,12 +20,13 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
     <main className="container mx-auto px-6 py-12">
       <div className="space-y-8">
         <div className="space-y-3">
-          <h1 className="font-bold text-4xl tracking-tight">
+          <h1 className="font-bold text-3xl tracking-tight">
             Explore Exoplanets
           </h1>
-          <p className="text-muted-foreground text-lg">
-            Browse {planets.length} confirmed exoplanets with detailed
-            parameters and uncertainties
+          <p className="text-muted-foreground text-md">
+            Browse a page of confirmed planets from NASA’s archive. Use filters
+            to refine by disposition, name, and key parameters; sort to compare
+            populations.
           </p>
         </div>
 

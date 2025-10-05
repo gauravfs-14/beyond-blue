@@ -45,7 +45,8 @@ class ExoplanetFeatures(BaseModel):
     koi_period: float = Field(..., description="Orbital period in days", gt=0)
     koi_duration: float = Field(..., description="Transit duration in hours", gt=0)
     koi_depth: float = Field(..., description="Transit depth in parts per million", gt=0)
-    koi_impact: Optional[float] = Field(None, description="Impact parameter (0-1)", ge=0, le=1)
+    # Allow >=0 (can exceed 1 for grazing/fit uncertainty in KOI catalog)
+    koi_impact: Optional[float] = Field(None, description="Impact parameter (≥0; may exceed 1 for grazing)", ge=0)
     koi_srho: Optional[float] = Field(None, description="Stellar density in g/cm³", gt=0)
     koi_incl: Optional[float] = Field(None, description="Orbital inclination in degrees", ge=0, le=180)
     

@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+// import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SurpriseMeButton } from "@/components/surprise-me-button";
+import { Telescope } from "lucide-react";
 
 export function Header() {
   return (
@@ -11,11 +13,12 @@ export function Header() {
             href="/"
             className="group flex items-center gap-2.5 transition-smooth"
           >
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/20 transition-smooth group-hover:shadow-primary/40">
+            {/* <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/20 transition-smooth group-hover:shadow-primary/40">
               <span className="font-mono text-sm font-bold text-primary-foreground">
-                BB
+                <Telescope className="h-4 w-4" />
               </span>
-            </div>
+            </div> */}
+            <Telescope className="h-6 w-6 group-hover:text-primary" />
             <span className="font-semibold text-foreground text-lg transition-smooth group-hover:text-primary">
               Beyond Blue
             </span>
@@ -45,14 +48,7 @@ export function Header() {
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <Button
-            variant="default"
-            size="sm"
-            asChild
-            className="shadow-sm transition-smooth hover:shadow-md"
-          >
-            <Link href="/explore">Surprise Me 🎉</Link>
-          </Button>
+          <SurpriseMeButton />
         </div>
       </div>
     </header>

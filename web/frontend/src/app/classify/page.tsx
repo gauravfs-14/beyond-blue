@@ -11,9 +11,9 @@ export default function ClassifyPage() {
             Planet Classifier
           </h1>
           <p className="text-muted-foreground leading-relaxed">
-            Use our machine learning model to classify exoplanets based on their
-            physical and orbital characteristics. Enter the parameters below to
-            get a classification with confidence score and rationale.
+            Test our FastAPI‑backed Random Forest on KOI‑style inputs. You’ll
+            get a disposition prediction (Confirmed vs False Positive), a
+            probability, and a clear confidence label.
           </p>
 
           <div className="flex gap-3 rounded-lg border border-border bg-muted/50 p-4">
@@ -21,10 +21,9 @@ export default function ClassifyPage() {
             <div className="space-y-1 text-sm">
               <p className="font-medium text-foreground">How it works</p>
               <p className="text-muted-foreground leading-relaxed">
-                The classifier analyzes planetary and stellar parameters to
-                determine the planet type (e.g., Gas Giant, Super-Earth,
-                Terrestrial). All fields are optional, but more data improves
-                accuracy.
+                Provide orbital period, transit duration and depth; optionally
+                add impact parameter, stellar density, and inclination. More
+                complete inputs generally yield better predictions.
               </p>
             </div>
           </div>
