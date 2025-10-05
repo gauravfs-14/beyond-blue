@@ -15,7 +15,7 @@ An AI-powered platform to explore exoplanets: search and filter NASA exoplanet d
 
 ### Requirements
 
-- Node.js ≥ 20 and Yarn (v1)
+- Node.js
 - Python ≥ 3.12
 - Optional: MongoDB (only if you enable backend Mongo features)
 
