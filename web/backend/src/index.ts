@@ -1,18 +1,19 @@
-import "dotenv/config";
-import express, { Request, Response, NextFunction } from "express";
-import mongoose from "mongoose";
-import { Planet } from "./models/planet";
-import {
-  isSafeUrl,
-  fetchHtml,
-  extractMainText,
-  extractHrefFromPlRefname,
-} from "./utils/summarize";
-import { summarizePlanetFromPaper } from "./services/gemini";
+import 'dotenv/config';
+import express, { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
+import { Planet } from './models/planet';
+import cors from 'cors';
+
+// import { isSafeUrl, fetchHtml, extractMainText, extractHrefFromPlRefname } from './utils/summarize';
+import { generateText } from './services/gemini';
+import { streamGenerate } from './services/gemini'; // see streaming helper below
 
 // ---- App setup ----
 const app = express();
 app.use(express.json());
+app.use(cors({ origin: '*' }));
+
+
 
 const MONGO_URI = process.env.MONGO_URI;
 const PORT = Number(process.env.PORT ?? 3000);
@@ -47,19 +48,12 @@ mongoose.set("sanitizeFilter", true);
       serverSelectionTimeoutMS: 10000,
       // If your URI does NOT include the DB, you can add: dbName: 'BeyondBlue'
     });
-    console.log("Connected to MongoDB");
-
+    // console.log('Connected to MongoDB');
     // Optional sanity logs:
     const conn = mongoose.connection;
-    console.log(
-      "DB:",
-      conn.name,
-      "Host:",
-      conn.host,
-      "Collection:",
-      Planet.collection.name
-    );
-    console.log("Planet count:", await Planet.estimatedDocumentCount());
+    // console.log('DB:', conn.name, 'Host:', conn.host, 'Collection:', Planet.collection.name);
+    // console.log('Planet count:', await Planet.estimatedDocumentCount());
+
   } catch (err) {
     console.error("MongoDB connection error:", err);
     process.exit(1);
@@ -194,15 +188,60 @@ app.get("/candidate", async (req, res, next) => {
 
 app.get("/false_positive", async (req, res, next) => {
   try {
-    const { limit, skip, sort } = getPaging(req.query);
-    const q = Planet.find({ disposition: /^FALSE POSITIVE$/i })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-    if (sort) q.sort(sort);
-    const docs = await q.exec();
-    return res.json(docs);
-  } catch (err) {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid ID' });
+    }
+
+    // cache
+    const cached = getCached(id);
+    if (cached) return res.json(cached);
+
+    // find planet
+    const planet = await Planet.findById(id).lean().exec();
+
+    if (!planet) return res.status(404).json({ error: 'Planet not found' });
+    // console.log('Planet:', planet.pl_name, planet.hostname);
+
+    // Build a concise prompt that passes the entire planet document to Gemini.
+    // Ask for a factual, at-most-3-sentence summary and no extra text.
+    const MAX = 150_000;
+    const planetJson = JSON.stringify(planet, null, 2);
+    const clipped = planetJson.length > MAX ? planetJson.slice(0, MAX) : planetJson;
+
+    const prompt = [
+      'You are an expert astrophysics summarizer.',
+      'Task: Given the following JSON document that represents a planet record, produce a concise factual summary about the planet in AT MOST 5 sentences.',
+      'Constraints:',
+      '- Use ONLY the information present in the provided JSON. Do NOT add outside knowledge or hallucinate.',
+      "- Return ONLY the summary text (no headers, labels, or commentary).",
+      '',
+      'Planet JSON:',
+      clipped
+    ].join('\n');
+
+    const summary = await generateText(prompt);
+
+    const payload = {
+      id,
+      // no sourceUrl when summarizing from DB record
+      title: (planet as any).pl_name ?? null,
+      summaryModel: 'gemini-2.5-flash',
+      summary
+    };
+
+    setCached(id, payload);
+    return res.json(payload);
+  } catch (err: any) {
+    // Friendly errors for common cases
+    if (err?.code === 'NO_LLM') {
+      return res.status(501).json({ error: 'LLM not configured. Set GOOGLE_API_KEY.' });
+    }
+    if (err?.name === 'AbortError') {
+      return res.status(504).json({ error: 'Upstream fetch timed out' });
+    }
+
     next(err);
   }
 });
@@ -217,34 +256,64 @@ app.get(
         return res.status(400).json({ error: "Invalid ID" });
       }
 
-      // cache
-      const cached = getCached(id);
-      if (cached) return res.json(cached);
+app.get('/stream-summary/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).end();
 
-      // find planet
-      const planet = await Planet.findById(id).lean().exec();
+  const planet = await Planet.findById(id).lean().exec();
+  if (!planet) return res.status(404).end();
 
-      if (!planet) return res.status(404).json({ error: "Planet not found" });
-      console.log("Planet:", planet.pl_name, planet.hostname);
+  // Prepare prompt (example)
+  const prompt = [
+    'You are an expert astrophysics summarizer.',
+    'Produce a concise factual summary about the planet in AT MOST 3 sentences.',
+    '- Use ONLY information present in the JSON below. No outside knowledge.',
+    '- Return only the summary text (no headings, no commentary).',
+    '',
+    'Planet JSON:',
+    JSON.stringify(planet, null, 2)
+  ].join('\n');
 
-      // extract URL from pl_refname
-      const href = extractHrefFromPlRefname((planet as any).pl_refname);
-      if (!href)
-        return res.status(400).json({ error: "No link found in pl_refname" });
-      if (!isSafeUrl(href))
-        return res.status(400).json({ error: "Unsafe or unsupported URL" });
+  // SSE headers
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  // Prevent nginx buffering
+  res.setHeader('X-Accel-Buffering', 'no');
 
-      // fetch + extract readable text
-      const html = await fetchHtml(href, 15000);
-      const { title, text } = extractMainText(html, href);
-      if (!text || text.length < 200) {
-        return res
-          .status(422)
-          .json({
-            error: "Could not extract enough text to summarize",
-            sourceUrl: href,
-          });
-      }
+  // Flush headers (once)
+  res.flushHeaders?.();
+
+  // Close response when client disconnects
+  const onClose = () => {
+    // If your SDK supports cancel token/abort, call it here.
+    req.off('close', onClose);
+    res.end();
+  };
+  req.on('close', onClose);
+
+  try {
+    // streamGenerate yields strings (chunks)
+    const stream = streamGenerate(prompt);
+
+    for await (const chunk of stream) {
+      // sanitize chunk if needed
+      const safe = (chunk ?? '').toString();
+      // SSE message (send JSON payload so you can add metadata)
+      res.write(`data: ${JSON.stringify({ chunk: safe })}\n\n`);
+      // flush if available
+      (res as any).flush?.();
+    }
+
+    // done event
+    res.write(`event: done\ndata: {}\n\n`);
+    res.end();
+  } catch (err: any) {
+    // send error as SSE event, then close
+    res.write(`event: error\ndata: ${JSON.stringify({ message: err?.message ?? String(err) })}\n\n`);
+    res.end();
+  }
+});
 
       // call Gemini to produce a summary about this specific planet using only the paper
       const summary = await summarizePlanetFromPaper(
@@ -282,6 +351,49 @@ app.get("/", (_req: Request, res: Response) => {
   res.send("Welcome to the Exoplanet API. Use /planets endpoints to explore.");
 });
 
+
+app.get('/search', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Read paging/sort first
+    const { limit, skip, sort } = getPaging(req.query);
+
+    // Parse known query parameters. We'll treat any provided param as a required
+    // filter (AND across params). `q` is a free-text that searches several fields
+    // but is ANDed with other provided params.
+    let keys = Object.keys(req.query);
+    const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const filter: Record<string, unknown> = {};
+
+    for (const key of keys) {
+      const keyValue = req.query[key] ? String(req.query[key]).trim() : undefined;
+      if (keyValue) {
+        filter[key] = new RegExp(escapeRegex(keyValue), 'i');
+      }
+    }
+    const qtext = req.query.q ? String(req.query.q).trim() : undefined;
+
+    if (filter[keys[keys.length-1]]) {
+      // qtext must also match (AND) — we implement qtext as an $or across fields,
+      // then include that $or clause together with other field-level filters.
+      filter.$and = filter.$and ?? [];
+      (filter.$and as any[]).push({
+        $or: [
+          { pl_name: new RegExp(escapeRegex(qtext ?? ''), 'i') },
+          { hostname: new RegExp(escapeRegex(qtext ?? ''), 'i') },
+          { disposition: new RegExp(escapeRegex(qtext ?? ''), 'i') }
+        ]
+      });
+    }
+
+    // Execute query
+    const query = Planet.find(filter).skip(skip).limit(limit).lean();
+    if (sort) query.sort(sort);
+    const [docs, total] = await Promise.all([query.exec(), Planet.countDocuments(filter)]);
+    return res.json({ total, limit, skip, docs });
+  } catch (err) {
+    next(err);
+  }
+});
 // 404
 app.use((_req: Request, res: Response) =>
   res.status(404).json({ error: "Route not found" })
@@ -298,6 +410,8 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   }
   res.status(500).json({ error: "Server error" });
 });
+
+
 
 // Start server (after file is loaded; connection is async but that’s fine)
 app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));

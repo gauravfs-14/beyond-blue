@@ -84,75 +84,43 @@ export async function generateText(prompt: string, options?: { modelFallback?: s
   throw lastErr;
 }
 
-export async function summarizeText(text: string, ctx?: { title?: string; url?: string }) {
-  const MAX = 150_000;
-  const clipped = text.length > MAX ? text.slice(0, MAX) : text;
+// in src/services/gemini.ts (add this helper)
+export async function* streamGenerate(prompt: string, options?: { model?: string }) {
+  const modelId = options?.model ?? 'gemini-2.5-flash';
+  const ai = getClient(); // Assumes getClient returns the GoogleGenAI client instance
 
-  const prompt = [
-    'You are an expert technical summarizer.',
-    ctx?.title ? `Title: ${ctx.title}` : '',
-    ctx?.url ? `Source: ${ctx.url}` : '',
-    '',
-    'Summarize clearly for developers:',
-    '- 3–6 bullet points',
-    '- key numbers/dates',
-    '- one-sentence TL;DR at end',
-    '',
-    'Text:',
-    clipped
-  ].join('\n');
+  try {
+    // 1. Use the official generateContentStream method
+    const stream = await ai.models.generateContentStream({
+      model: modelId,
+      contents: prompt,
+    });
 
-  return await generateText(prompt);
+    console.log(new Date().toISOString(), 'streaming start');
+
+    // 2. Iterate over the async iterable stream
+    for await (const chunk of stream) {
+      
+      const text = chunk.text;
+      console.log(new Date().toISOString(), 'stream chunk', text);
+      if (text) {
+        // 4. Yield the chunk of text
+        yield text;
+      }
+    }
+
+    console.log(new Date().toISOString(), 'streaming end');
+    
+  } catch (e) {
+    console.error('Gemini streaming error, falling back to full response:', e);
+    try {
+      const full = await generateText(prompt, { modelFallback: [modelId] });
+      yield full;
+    } catch (fallbackError) {
+      // Re-throw the original or fallback error for the calling code to handle
+      throw e; 
+    }
+  }
 }
 
-/**
- * Summarize details about a specific planet from a research paper's text.
- * - planetName: the planet to look for (exact name)
- * - paperText: full text (or clipped) of the research paper
- * Behavior:
- * - Use only facts found in the provided paper text.
- * - Return only the summary (no leading/trailing commentary).
- * - Maximum 5 sentences. If fewer facts exist, return fewer sentences.
- */
-export async function summarizePlanetFromPaper(planetName: string, paperText: string) {
-  const MAX = 150_000;
-  const clipped = paperText.length > MAX ? paperText.slice(0, MAX) : paperText;
-
-  const prompt = [
-    `You are an expert astrophysics research assistant.`,
-    `Task: Extract only factual statements from the provided research paper about the planet named "${planetName}".`,
-    `Constraints:`,
-    `- Use ONLY information present in the paper text below. Do NOT use outside knowledge or hallucinate.`,
-    `- Provide at most 5 sentences. Each sentence should be concise and factual.`,
-    `- Do NOT include any intro, footer, labels, or commentary. RETURN ONLY the sentences (no "Summary:" or similar).`,
-    `- If the paper contains no information about ${planetName}, return a single sentence: "No information about ${planetName} found in the provided text."`,
-    '',
-    'Paper text:',
-    clipped
-  ].join('\n');
-
-  // Ask the model and then strictly post-check the response to trim whitespace and
-  // ensure no extra text before/after. We also enforce sentence cap on the client-side
-  // as a safety net (split by sentence-ending punctuation).
-  let raw = await generateText(prompt);
-  raw = raw.trim();
-
-  // If model returned the special single-sentence no-info message, return it verbatim.
-  if (raw === `No information about ${planetName} found in the provided text.`) return raw;
-
-  // Split into sentences (simple heuristic). Keep up to 5 sentences.
-  const sentences = raw
-    .replace(/\s+/g, ' ')
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 5);
-
-  // If no sentences found, return a safe message.
-  if (sentences.length === 0) return `No information about ${planetName} found in the provided text.`;
-
-  // Join back into a single block with spaces (or newlines if you prefer).
-  return sentences.join(' ');
-}
-
-export default { generateText, summarizeText, summarizePlanetFromPaper };
+export default { generateText, streamGenerate };
